@@ -1,0 +1,18 @@
+entrypoint = "Main.js"
+modules = ["nodejs-20:v8-20230920-bd784b9"]
+hidden = [".config", "package-lock.json", "package.json" , "config.json.temp", ".lesson", ".git",".gitignore","languages"," utils","includes","DB"]
+
+[nix]
+channel = "stable-23_05"
+
+[unitTest]
+language = "nodejs"
+
+[deployment]
+run = ["node", "Main.js"]
+deploymentTarget = "cloudrun"
+ignorePorts = false
+
+[[ports]]
+localPort = 3000
+externalPort = 80
