@@ -98,13 +98,43 @@ class Zao {
       options
     );
     this.child.on("close", (codeExit) => {
-      if (codeExit !== 0 && this.countRestart < 5) {
+      if (codeExit !== 0 && this.countRestart < 10) {
         this.countRestart += 1;
-        this.startBot();
+        logger.log([
+          {
+          message: "[ BOT ]: ",
+           color: ["yellow", "cyan"],
+          },
+          {
+          message: `Bot crashed, restart attempt ${this.countRestart}/10. Server still running on port ${this.PORT}`,
+          color: "white",
+          },
+        ]);
+        setTimeout(() => this.startBot(), 5000);
+      } else if (codeExit !== 0) {
+        logger.log([
+          {
+          message: "[ BOT ]: ",
+           color: ["red", "cyan"],
+          },
+          {
+          message: `Bot failed after 10 restarts. HTTP Server still available on port ${this.PORT}`,
+          color: "white",
+          },
+        ]);
       }
     });
     this.child.on("error", (error) => {
-      console.error("An error occurred: " + JSON.stringify(error), "error");
+      logger.log([
+        {
+        message: "[ BOT ERROR ]: ",
+         color: ["red", "cyan"],
+        },
+        {
+        message: `${JSON.stringify(error)}`,
+        color: "white",
+        },
+      ]);
     });
   }
 }
