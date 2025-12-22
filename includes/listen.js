@@ -10,50 +10,39 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
   const chalk = require("chalk");
    const cv = chalk.bold.hex("#1390f0");
    const gradient = require("gradient-string")
-   const redToGreen = gradient("red", "cyan")
+   const redToGreen = gradient("red", "cyan");
+   
+   // Pre-load all handlers outside event listener for performance
+   const handleCommand = require("./handle/handleCommand");
+   const handleCommandEvent = require("./handle/handleCommandEvent");
+   const handleReply = require("./handle/handleReply");
+   const handleReaction = require("./handle/handleReaction");
+   const handleEvent = require("./handle/handleEvent");
+   const handleCreateDatabase = require("./handle/handleCreateDatabase");
 
-
-           // auto clean up :
+   // Auto cleanup setup
   const cacheDirectory = __dirname + '/../SCRIPTS/ZAO-CMDS/cache';
-  const autoClean = [
-      ".jpg", ".gif", ".mp4", ".mp3", ".png", ".m4a"
-    ];
+  const autoClean = [".jpg", ".gif", ".mp4", ".mp3", ".png", ".m4a"];
 
-  const clean = () => {
-    fs.readdir(cacheDirectory, (err, files) => {
-      if (err) {
-                  logger.log([
-    {
-      message: "[ AUTO CLEAN ]: ",
-       color: ["red", "cyan"],
-    },
-    {
-      message: `Error reading cache directory:', ${err}`,
-      color: "white",
-    },
-  ], "error");;
-        return;
-      }
-
-      const listSc = [];
-      const listErr = [];
-
-      autoClean.forEach((exit) => {
-        try {
-          files.forEach((i) => {
-            if (i.includes(exit)) {
-              const filePath = path.join(cacheDirectory, i);
-              fs.unlinkSync(filePath);
-              listSc.push(i);
+  const clean = async () => {
+    try {
+      const files = await fs.promises.readdir(cacheDirectory);
+      for (const exit of autoClean) {
+        for (const file of files) {
+          if (file.includes(exit)) {
+            try {
+              await fs.promises.unlink(path.join(cacheDirectory, file));
+            } catch (e) {
+              // Silent fail for individual files
             }
-          });
-        } catch (error) {
-          listErr.push(exit);
+          }
         }
-      });
-    });
+      }
+    } catch (err) {
+      // Silent fail for cleanup
+    }
   };
-  setInterval(clean, 60000); //1min
+  setInterval(clean, 60000);
   
         
   
@@ -137,48 +126,59 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
 
         
         return (event) => {
+  try {
     const message = Messages(api, event);
-
-    const handleCommand = require("./handle/handleCommand")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
-    const handleCommandEvent = require("./handle/handleCommandEvent")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
-    const handleReply = require("./handle/handleReply")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
-    const handleReaction = require("./handle/handleReaction")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
-    const handleEvent = require("./handle/handleEvent")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
-    const handleCreateDatabase = require("./handle/handleCreateDatabase")({  api, Threads, Users, Currencies, models, globalData, usersData, threadsData });
+    const handlers = {
+      command: handleCommand({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData, message }),
+      commandEvent: handleCommandEvent({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData, message }),
+      reply: handleReply({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData, message }),
+      reaction: handleReaction({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData, message }),
+      event: handleEvent({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData, message }),
+      database: handleCreateDatabase({ api, Threads, Users, Currencies, models, globalData, usersData, threadsData })
+    };
     
-                
-                switch (event.type) {
-                        case "message":
-                        case "message_reply":
-                        case "message_unsend":
-                                handleCreateDatabase({ event });
-                                handleCommand({ event });
-                                handleReply({ event });
-                                handleCommandEvent({ event });
-                                break;
-                        case "event":
-                                handleEvent({ event });
-                                break;
-                        case "message_reaction":                        
-                                handleReaction({ event });
-        if (event.reaction === "🖤" ) {
-          api.setMessageReaction("🖤", event.messageID, (err) => {}, true);
+    switch (event.type) {
+      case "message":
+      case "message_reply":
+      case "message_unsend":
+        try {
+          handlers.database({ event });
+          handlers.command({ event });
+          handlers.reply({ event });
+          handlers.commandEvent({ event });
+        } catch (err) {
+          logger.log([{ message: "[ HANDLER ERROR ]: ", color: ["red", "cyan"] }, { message: err.message, color: "white" }]);
         }
-      /*  if (event.reaction === "ضع الإيموجي ليعجبك" && event.userID === "هنا ضع معرف حسابك" ) { 
-        api.removeUserFromGroup(event.senderID, event.threadID)
-        } */
-        if (event.reaction === "😂" ) {
-          api.setMessageReaction("😂", event.messageID, (err) => {}, true);
+        break;
+      case "event":
+        try {
+          handlers.event({ event });
+        } catch (err) {
+          logger.log([{ message: "[ EVENT ERROR ]: ", color: ["red", "cyan"] }, { message: err.message, color: "white" }]);
         }
-                                if (event.reaction === "😠" && event.senderID === api.getCurrentUserID()) {
-          api.unsendMessage(event.messageID);
+        break;
+      case "message_reaction":
+        try {
+          handlers.reaction({ event });
+          if (event.reaction === "🖤") {
+            api.setMessageReaction("🖤", event.messageID, () => {}, true);
+          }
+          if (event.reaction === "😂") {
+            api.setMessageReaction("😂", event.messageID, () => {}, true);
+          }
+          if (event.reaction === "😠" && event.senderID === api.getCurrentUserID()) {
+            api.unsendMessage(event.messageID);
+          }
+        } catch (err) {
+          logger.log([{ message: "[ REACTION ERROR ]: ", color: ["red", "cyan"] }, { message: err.message, color: "white" }]);
         }
-                                break;
+        break;
       default:
-                    if (event.body == "طلعيني" && event.senderID == "هنا حط معرفك ايضا") {api.sendMessage('تم😇', event.threadID)
-api.changeAdminStatus(event.threadID, eventID, true);
-        }
-                }
+        break;
+    }
+  } catch (err) {
+    logger.log([{ message: "[ EVENT LOOP ERROR ]: ", color: ["red", "cyan"] }, { message: err.message, color: "white" }]);
+  }
         };
 };
 
