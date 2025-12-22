@@ -3,17 +3,17 @@ const path = require("path");
 const Messages = global.funcs.message;
 module.exports = function({ api, models, globalData, usersData, threadsData }) {
 
-	const Users = require("./controllers/users")({ models, api }),
-				Threads = require("./controllers/threads")({ models, api }),
-				Currencies = require("./controllers/currencies")({ models });
-	const logger = require("../utils/log.js");
+        const Users = require("./controllers/users")({ models, api }),
+                                Threads = require("./controllers/threads")({ models, api }),
+                                Currencies = require("./controllers/currencies")({ models });
+        const logger = require("../utils/log.js");
   const chalk = require("chalk");
    const cv = chalk.bold.hex("#1390f0");
    const gradient = require("gradient-string")
    const redToGreen = gradient("red", "cyan")
 
 
-	   // auto clean up :
+           // auto clean up :
   const cacheDirectory = __dirname + '/../SCRIPTS/ZAO-CMDS/cache';
   const autoClean = [
       ".jpg", ".gif", ".mp4", ".mp3", ".png", ".m4a"
@@ -22,7 +22,7 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
   const clean = () => {
     fs.readdir(cacheDirectory, (err, files) => {
       if (err) {
-		  logger.log([
+                  logger.log([
     {
       message: "[ AUTO CLEAN ]: ",
        color: ["red", "cyan"],
@@ -55,7 +55,7 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
   };
   setInterval(clean, 60000); //1min
   
-	
+        
   
 (async function () {
  try {
@@ -69,8 +69,8 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
             global.data.threadData.set(idThread, data['data'] || {}), 
             global.data.threadInfo.set(idThread, data.threadInfo || {});
             if (data['data'] && data['data']['banned'] == !![]) 
-            	global.data.threadBanned.set(idThread, 
-            	{
+                global.data.threadBanned.set(idThread, 
+                {
                 'reason': data['data']['reason'] || '',
                 'dateAdded': data['data']['dateAdded'] || ''
             });
@@ -135,11 +135,8 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
 
 
 
-	
-	return (event) => {
-  if(!rtg) {
-    return process.exit(0);
-  }
+        
+        return (event) => {
     const message = Messages(api, event);
 
     const handleCommand = require("./handle/handleCommand")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
@@ -149,21 +146,21 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
     const handleEvent = require("./handle/handleEvent")({ api, models, Users, Threads, Currencies, globalData, usersData, threadsData , message });
     const handleCreateDatabase = require("./handle/handleCreateDatabase")({  api, Threads, Users, Currencies, models, globalData, usersData, threadsData });
     
-		
-		switch (event.type) {
-			case "message":
-			case "message_reply":
-			case "message_unsend":
-				handleCreateDatabase({ event });
-				handleCommand({ event });
-				handleReply({ event });
-				handleCommandEvent({ event });
-				break;
-			case "event":
-				handleEvent({ event });
-				break;
-			case "message_reaction":			
-				handleReaction({ event });
+                
+                switch (event.type) {
+                        case "message":
+                        case "message_reply":
+                        case "message_unsend":
+                                handleCreateDatabase({ event });
+                                handleCommand({ event });
+                                handleReply({ event });
+                                handleCommandEvent({ event });
+                                break;
+                        case "event":
+                                handleEvent({ event });
+                                break;
+                        case "message_reaction":                        
+                                handleReaction({ event });
         if (event.reaction === "🖤" ) {
           api.setMessageReaction("🖤", event.messageID, (err) => {}, true);
         }
@@ -173,16 +170,16 @@ module.exports = function({ api, models, globalData, usersData, threadsData }) {
         if (event.reaction === "😂" ) {
           api.setMessageReaction("😂", event.messageID, (err) => {}, true);
         }
-				if (event.reaction === "😠" && event.senderID === api.getCurrentUserID()) {
+                                if (event.reaction === "😠" && event.senderID === api.getCurrentUserID()) {
           api.unsendMessage(event.messageID);
         }
-				break;
+                                break;
       default:
                     if (event.body == "طلعيني" && event.senderID == "هنا حط معرفك ايضا") {api.sendMessage('تم😇', event.threadID)
 api.changeAdminStatus(event.threadID, eventID, true);
         }
-		}
-	};
+                }
+        };
 };
 
 
